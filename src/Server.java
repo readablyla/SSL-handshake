@@ -11,12 +11,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.io.IOException;//shouldn't need?
+import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 import java.util.UUID;
 
 public class Server {
     private static Socket socket;
-	public static void main(String[] args) throws UnknownHostException, IOException, ClassNotFoundException, InterruptedException{
+    private ShareShop ss = new ShareShop(); //is there a better way? maybe shareshop can be static?
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
+        Server server = new Server();
+        server.run();
+    }
+	private void run() throws IOException, NoSuchAlgorithmException {
 		int port = 25000;
         int privateKey = 19;
 		ServerSocket serverSocket = new ServerSocket(port);
@@ -42,14 +48,14 @@ public class Server {
             BigInteger p = BigInteger.probablePrime(1024, rsa_random);
             BigInteger q = BigInteger.probablePrime(1024, rsa_random);
             BigInteger n = p.multiply(q); //must be 2048 bits
-            BigInteger rsa_e = new BigInteger("65537");
+            BigInteger e = new BigInteger("65537");
             String nString;
             if (n.bitLength() != 2048){
                 nString = "0" + n.toString(2);
             } else{
                 nString = n.toString(2);
             }
-            String mToSend = nString + rsa_e.toString(2) + "\n";
+            String mToSend = nString + e.toString(2) + "\n";
             bWriter.write(mToSend);
             bWriter.flush();
             System.out.println("Server to Client: " + mToSend);
@@ -64,15 +70,21 @@ public class Server {
             bWriter.flush();
             System.out.println("Server to Client: " + mToSend);
 
-            // SEND Ephemeral DH:
-            //add run method, create instance of ShareShop
-            BigInteger clientPublicKey = (ss.getDh_g().pow(privateKey)).mod(ss.getDh_p());
-            BigInteger hashedPublicKey = ss.getSHA256(clientPublicKey.toString());
-            //get e and n into their proper form (decimal, BigInteger)
-            //how can the client compute s and sign their public key without having d?
+            // RCVD Ephemeral DH: Client's Diffie-Hellman public key
+            receivedMessage = bReader.readLine();
+            BigInteger clientPublicKey = new BigInteger(receivedMessage);
+            System.out.println("Client to Server: Client's DH Public Key = " + receivedMessage);
+
+            // SEND Ephemeral DH: Server's Diffie-Hellman public key
+            BigInteger serverPublicKey = (ss.getDh_g().pow(privateKey)).mod(ss.getDh_p());
             BigInteger m = (p.subtract(BigInteger.ONE)).multiply((q.subtract(BigInteger.ONE)));
-            BigInteger d = rsa_e.modInverse(m);
-            BigInteger s = ss.fastModExp(hashedPublicKey, d, rsa_n);
+            BigInteger d = e.modInverse(m);
+            BigInteger s = ss.fastModExp(ss.getSHA256(serverPublicKey.toString()), d, n);
+            mToSend = serverPublicKey.toString() + s.toString() + "\n";
+                    //can't think of any rules the length of these elements will follow.
+            bWriter.write(mToSend);
+            bWriter.flush();
+            System.out.println("Server to Client: Server's DH Public Key || rsa signature = " + mToSend);
 
 
 			if(receivedMessage.equalsIgnoreCase("exit")) break;

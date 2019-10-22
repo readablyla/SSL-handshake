@@ -63,14 +63,20 @@ public class Client {
         receivedMessage = bReader.readLine();
         System.out.println("Server to Client: ID_S || SID = " + receivedMessage);
 
-        // SEND Ephemeral DH:
+        // SEND Ephemeral DH: Client's Diffie-Hellman public key
         BigInteger clientPublicKey = (ss.getDh_g().pow(privateKey)).mod(ss.getDh_p());
-        BigInteger hashedPublicKey = ss.getSHA256(clientPublicKey.toString());
-        //get e and n into their proper form (decimal, BigInteger)
-        //how can the client compute s and sign their public key without having d?
-        BigInteger m = (p.subtract(BigInteger.ONE)).multiply((q.subtract(BigInteger.ONE)));
-        BigInteger d = rsa_e.modInverse(m);
-        BigInteger s = ss.fastModExp(hashedPublicKey, d, rsa_n);
+        mToSend = clientPublicKey.toString() + "\n";
+        bWriter.write(mToSend);
+        bWriter.flush();
+        System.out.println("Client to Server: Client's DH Public Key = " + mToSend);
+
+        // RCVD Ephemeral DH: Server's Diffie-Hellman public key
+        receivedMessage = bReader.readLine();
+        //BigInteger serverPublicKey = new BigInteger(receivedMessage);
+        System.out.println("Server to Client: Server's DH Public Key = " + receivedMessage);
+
+        // Signature Verification:
+
 
 		socket.close();
 	}
