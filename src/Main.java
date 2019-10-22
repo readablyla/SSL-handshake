@@ -22,9 +22,8 @@ public class Main {
 
         //RSA
         Random rsa_random = new Random();
-        //double check 2048 and 100 are the right numbers to use here
-        BigInteger p = new BigInteger(2048, 100, rsa_random); //must be a prime?
-        BigInteger q = new BigInteger(2048, 100, rsa_random); //must be a prime?
+        BigInteger p = new BigInteger(1024, 100, rsa_random); //must be a prime?
+        BigInteger q = new BigInteger(1024, 100, rsa_random); //must be a prime?
         BigInteger m = (p.subtract(BigInteger.ONE)).multiply((q.subtract(BigInteger.ONE)));
         BigInteger rsa_e = new BigInteger("65537");
         BigInteger rsa_n = p.multiply(q);
@@ -33,8 +32,8 @@ public class Main {
         // I thought that a public key was the (n, e) pair, but it says that the public key is
         //the fixed e=65537. This is the message to be sent?
 
-        // find SHA256 of rsa_e - check it is ok to convert rsa_e the 'public key'? into a String for this
-        MessageDigest mdigest = MessageDigest.getInstance("SHA-256"); //hashing this directly gives 102/e3b pair
+        // find SHA256
+        MessageDigest mdigest = MessageDigest.getInstance("SHA-256");
         mdigest.update(rsa_e.toString().getBytes(StandardCharsets.UTF_8)); // getBytes works if rsa_e is a string. convert e to byte array and update the mdigest with this value. next call will operate on the update, and return correct value
         String output = String.format("%064x", new BigInteger(1, mdigest.digest()));//digest the original mdigest, format result as a string
         BigInteger sha_bigInt = new BigInteger(output, 16);
@@ -48,9 +47,17 @@ public class Main {
         BigInteger check_h_m = fastModExp(s, rsa_e, rsa_n);
         System.out.println("Compare sha_bigInt: " + sha_bigInt + "\nvs check_h_m: " + check_h_m);
 
-        /*//Diffie-Hellman
-        int p = 23;
-        int g = 2;*/
+        //Diffie-Hellman
+        BigInteger p_ = new BigInteger("23");
+		BigInteger g = new BigInteger("2");
+		//BigInteger x_a = new BigInteger("3");
+		//BigInteger x_b = new BigInteger("5");
+		int x_a = 3;
+		int x_b = 5;
+
+
+		BigInteger y_b = g.pow(x_b);
+		//find SHA256 of y_b, then s. Server sends y_b||s, and the client computes whether correct.
     }
 
     public static BigInteger fastModExp(BigInteger b, BigInteger e, BigInteger n){
