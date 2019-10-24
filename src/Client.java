@@ -72,11 +72,18 @@ public class Client {
 
         // RCVD Ephemeral DH: Server's Diffie-Hellman public key
         receivedMessage = bReader.readLine();
-        //BigInteger serverPublicKey = new BigInteger(receivedMessage);
-        System.out.println("Server to Client: Server's DH Public Key = " + receivedMessage);
+        System.out.println("received message length: " + new BigInteger(receivedMessage,2).bitLength());
+        BigInteger serverPublicKey = new BigInteger(receivedMessage.substring(0, 1024), 2);
+        BigInteger signature = new BigInteger(receivedMessage.substring(1024), 2);
+        System.out.println("Server to Client: Server's DH Public Key || rsa signature = " + receivedMessage);
+        System.out.println("Server public key = " + serverPublicKey);
+        System.out.println("Server sig = " + signature);
 
         // Signature Verification:
-
+        BigInteger hashedK = ss.getSHA256(serverPublicKey.toString());
+        BigInteger check = ss.fastModExp(signature, new BigInteger(rsa_e, 2), new BigInteger(rsa_n, 2));
+        System.out.println("LHS: " + hashedK);
+        System.out.println("RHS: " + check);
 
 		socket.close();
 	}

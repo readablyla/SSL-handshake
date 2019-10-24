@@ -41,12 +41,21 @@ public class ShareShop {
         return result; // does this need to be mod again?
     }
 
-    // getSHA256
+    // getSHA256 -- can make this static?
     public BigInteger getSHA256(String message) throws NoSuchAlgorithmException {
         MessageDigest mdigest = MessageDigest.getInstance("SHA-256");
         mdigest.update(message.getBytes(StandardCharsets.UTF_8)); // getBytes works if rsa_e is a string. convert e to byte array and update the mdigest with this value. next call will operate on the update, and return correct value
         String output = String.format("%064x", new BigInteger(1, mdigest.digest()));//digest the original mdigest, format result as a string
         return new BigInteger(output, 16);
+    }
+
+    // Convert a BigInteger into a bit string
+    public String convertPadBitString(BigInteger bInt, int expectedLength){
+        if (bInt.bitLength() != expectedLength){
+            return "0" + bInt.toString(2);
+        } else{
+            return bInt.toString(2);
+        }
     }
 
 }

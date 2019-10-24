@@ -49,13 +49,7 @@ public class Server {
             BigInteger q = BigInteger.probablePrime(1024, rsa_random);
             BigInteger n = p.multiply(q); //must be 2048 bits
             BigInteger e = new BigInteger("65537");
-            String nString;
-            if (n.bitLength() != 2048){
-                nString = "0" + n.toString(2);
-            } else{
-                nString = n.toString(2);
-            }
-            String mToSend = nString + e.toString(2) + "\n";
+            String mToSend = ss.convertPadBitString(n, 2048) + e.toString(2) + "\n";
             bWriter.write(mToSend);
             bWriter.flush();
             System.out.println("Server to Client: " + mToSend);
@@ -80,11 +74,19 @@ public class Server {
             BigInteger m = (p.subtract(BigInteger.ONE)).multiply((q.subtract(BigInteger.ONE)));
             BigInteger d = e.modInverse(m);
             BigInteger s = ss.fastModExp(ss.getSHA256(serverPublicKey.toString()), d, n);
-            mToSend = serverPublicKey.toString() + s.toString() + "\n";
-                    //can't think of any rules the length of these elements will follow.
+
+            System.out.println("Server public key = " + serverPublicKey);
+            System.out.println("Server sig = " + s);
+
+                // Convert to padded binary string
+            //mToSend = ss.convertPadBitString(serverPublicKey, 1024) + ss.convertPadBitString(s, 2048) + "\n";
+            mToSend = ss.convertPadBitString(serverPublicKey, 1024) + s.toString(2) + "\n";//not padding sig anymore
             bWriter.write(mToSend);
             bWriter.flush();
             System.out.println("Server to Client: Server's DH Public Key || rsa signature = " + mToSend);
+
+
+
 
 
 			if(receivedMessage.equalsIgnoreCase("exit")) break;
