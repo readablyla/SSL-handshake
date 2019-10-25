@@ -23,7 +23,7 @@ public class Client {
     }
     private void run() throws IOException, NoSuchAlgorithmException {
         int port = 25000;
-        int privateKey = 13;
+        BigInteger privateKey = new BigInteger("13");
         //get the localhost IP address
         InetAddress host = InetAddress.getLocalHost();
 		socket = new Socket(host, port);
@@ -64,7 +64,7 @@ public class Client {
         System.out.println("Server to Client: ID_S || SID = " + receivedMessage);
 
         // SEND Ephemeral DH: Client's Diffie-Hellman public key
-        BigInteger clientPublicKey = (ss.getDh_g().pow(privateKey)).mod(ss.getDh_p());
+        BigInteger clientPublicKey = ss.fastModExp(ss.getDh_g(), privateKey, ss.getDh_p());
         mToSend = clientPublicKey.toString() + "\n";
         bWriter.write(mToSend);
         bWriter.flush();
@@ -84,6 +84,57 @@ public class Client {
         BigInteger check = ss.fastModExp(signature, new BigInteger(rsa_e, 2), new BigInteger(rsa_n, 2));
         System.out.println("LHS: " + hashedK);
         System.out.println("RHS: " + check);
+        //implement a check that ends the session now if they don't match
+        if (hashedK.compareTo(check) != 0){
+            System.out.println("Signature verification failed");
+            bWriter.write("exit");
+            bWriter.flush();
+            socket.close();
+        }
+
+        // Finished, check the shared key: Client's shared key
+        BigInteger clientSharedKey = ss.fastModExp(serverPublicKey, privateKey, ss.getDh_p());
+        Random rand = new Random();
+        BigInteger nonce_C = new BigInteger(1024, rand);
+        String toHash = clientSharedKey.toString(2) + nonce_C.toString(2);
+        System.out.println("clientSharedKey:  " + clientSharedKey);
+        System.out.println("clientSharedKey length: " + clientSharedKey.bitLength());
+        System.out.println("nonce_C:  " + nonce_C);
+        System.out.println("nonce_C length: " + nonce_C.bitLength());
+        System.out.println("toHash: " + toHash);
+        String hashedSessionKey = ss.convertPadBitString(ss.getSHA256(toHash), 256);
+        System.out.println("hashedSessionKey: " + hashedSessionKey);
+        mToSend = hashedSessionKey + nonce_C.toString(2) + "\n";
+        bWriter.write(mToSend);
+        bWriter.flush();
+        System.out.println("Client to Server: Client's hashed Session Key with nonce_c = " + mToSend);
+
+        // RCVD
+        receivedMessage = bReader.readLine();
+        System.out.println("Client to Server: Client's hashed session key/nonce pair, and nonce: " + receivedMessage);
+        System.out.println("received message length: " + new BigInteger(receivedMessage,2).bitLength());
+        BigInteger hashedSessionKey_S = new BigInteger(receivedMessage.substring(0, 256), 2);
+        BigInteger nonce_s = new BigInteger(receivedMessage.substring(256), 2);
+        System.out.println("hashedSessionKey_S: " + hashedSessionKey_S);
+        System.out.println("nonce_S: " + nonce_s);
+        // check validity:
+        BigInteger serverSharedKey = ss.fastModExp(clientPublicKey, privateKey, ss.getDh_p());
+        System.out.println("serverSharedKey " + serverSharedKey);
+        String testHash = serverSharedKey.toString(2) + nonce_s.toString(2);
+        check = new BigInteger(ss.convertPadBitString(ss.getSHA256(testHash), 256), 2);
+        System.out.println("check: " + check);
+        System.out.println("compare: " + check.compareTo(hashedSessionKey_S));
+        if (check.compareTo(hashedSessionKey_S) != 0){
+            System.out.println("Signature verification failed");
+            receivedMessage = "exit";
+        }
+
+
+
+
+
+
+
 
 		socket.close();
 	}
