@@ -1,27 +1,33 @@
+import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.io.IOException;//shouldn't need?
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 
 public class Client {
 	private static Socket socket; //why up here? why static?
     private ShareShop ss = new ShareShop(); //is there a better way? maybe shareshop can be static?
-    public static void main(String[] args) throws IOException, NoSuchAlgorithmException {
+    public static void main(String[] args) throws IOException, NoSuchAlgorithmException, InvalidKeyException, NoSuchPaddingException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
         Client client = new Client();
         client.run();
     }
-    private void run() throws IOException, NoSuchAlgorithmException {
+    private void run() throws IOException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, BadPaddingException, IllegalBlockSizeException {
         int port = 25000;
         BigInteger privateKey = new BigInteger("13");
         //get the localhost IP address
@@ -47,8 +53,6 @@ public class Client {
         String receivedMessage = bReader.readLine();
         String rsa_e = receivedMessage.substring(2048);
         String rsa_n = receivedMessage.substring(0, 2048);
-        BigInteger x = new BigInteger(rsa_e, 2);
-        BigInteger y = new BigInteger(rsa_n, 2);
         System.out.println("Server to Client: " + receivedMessage); // should I print the values for n and e also?
 
         // SEND Client_Hello: ID_C
@@ -65,6 +69,7 @@ public class Client {
 
         // SEND Ephemeral DH: Client's Diffie-Hellman public key
         BigInteger clientPublicKey = ss.fastModExp(ss.getDh_g(), privateKey, ss.getDh_p());
+        System.out.println("clientPublicKey length: " + clientPublicKey.bitLength());
         mToSend = clientPublicKey.toString() + "\n";
         bWriter.write(mToSend);
         bWriter.flush();
@@ -118,23 +123,47 @@ public class Client {
         System.out.println("hashedSessionKey_S: " + hashedSessionKey_S);
         System.out.println("nonce_S: " + nonce_s);
         // check validity:
-        BigInteger serverSharedKey = ss.fastModExp(clientPublicKey, privateKey, ss.getDh_p());
-        System.out.println("serverSharedKey " + serverSharedKey);
-        String testHash = serverSharedKey.toString(2) + nonce_s.toString(2);
+        System.out.println("clientSharedKey " + clientSharedKey);
+        String testHash = clientSharedKey.toString(2) + nonce_s.toString(2);
         check = new BigInteger(ss.convertPadBitString(ss.getSHA256(testHash), 256), 2);
         System.out.println("check: " + check);
         System.out.println("compare: " + check.compareTo(hashedSessionKey_S));
         if (check.compareTo(hashedSessionKey_S) != 0){
             System.out.println("Signature verification failed");
-            receivedMessage = "exit";
+            bWriter.write("exit");
+            bWriter.flush();
+            socket.close();
+            //this does not end it!
         }
 
+        // SEND M1 - add CBC MAC then encrypt
+        BigInteger m1 = new BigInteger(512, rand);//generate message plaintext //TODO: can Random rand be reused?
+        System.out.println("m1: " + ss.convertPadBitString(m1, 512));
+        String mac = ss.encryptCBC(m1, clientSharedKey);// generate CBC-MAC //TODO: invalid AES key length: 33 bytes
+        System.out.println("mac: " + mac);
+        BigInteger macNum = new BigInteger(mac, 2);
+        System.out.println("mac num: " +macNum);
+        System.out.println("mac bits: "+macNum.bitLength());
+        String mToEncrypt = ss.convertPadBitString(m1, 512) + mac;//64 bytes + 64 bytes = 128 bytes (1024 bits)
+        System.out.println("mToEncrypt: " + mToEncrypt);
+        String message1 = ss.encryptCTR(new BigInteger(mToEncrypt,2), clientSharedKey);//
+        System.out.println("message1: " + message1);
 
 
+        String decryptedmessage1 = ss.encryptCTR(new BigInteger(message1,2),clientSharedKey);
+        System.out.println("decrypted message: " + decryptedmessage1);
+        System.out.println("mToEncrypt       : " + mToEncrypt);
+        String c_string = decryptedmessage1.substring(0,512);
+        String mac_string = decryptedmessage1.substring(512);
+        String test_mac = ss.encryptCBC(new BigInteger(c_string, 2), clientSharedKey);
+        System.out.println("test_mac    : "+test_mac);
+        System.out.println("received mac: "+mac_string);
 
 
-
-
+        /*byte[] input = m1.getBytes(StandardCharsets.UTF_8);
+        String s = Base64.getEncoder().encodeToString(input);
+        System.out.println(s);
+        //mToSend = m1 + t;*/
 
 		socket.close();
 	}
