@@ -14,6 +14,15 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+// Client.java - Assignment 3
+// Author: Leala Darby
+// Student Number: 3279478
+// Date: 1/11/2019
+
+/**
+ * This Client class contains the main flow of the Client behaviour in the SSL handshake process.
+ */
+
 public class Client {
 	private static Socket socket; //why up here? why static?
     private PublicCode ss = new PublicCode(); //is there a better way? maybe PublicCode can be static?
@@ -116,7 +125,7 @@ public class Client {
         String message1 = ss.encryptCTR(new BigInteger(mToEncrypt,2), clientSharedKey) + "\n";
         bWriter.write(message1);
         bWriter.flush();
-        System.out.println("Client: Message 1 plaintext = " + ss.convertPadBitString(m1, 512));//TODO: should this be printed to show that it encrypts/decrypts correctly?
+        System.out.println("Client: Message 1 plaintext = " + ss.convertPadBitString(m1, 512));
         System.out.println("Client to Server: E[Message_1||CBC-MAC(Message_1)] = " + message1);
 
         // RCVD Data exchange: Client sends M2 via E[Message_2||CBC-MAC(Message_2)]

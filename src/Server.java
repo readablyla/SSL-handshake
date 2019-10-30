@@ -16,6 +16,16 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 import java.util.UUID;
 
+
+// Server.java - Assignment 3
+// Author: Leala Darby
+// Student Number: 3279478
+// Date: 1/11/2019
+
+/**
+ * This Server class contains the main flow of the Server behaviour in the SSL handshake process.
+ */
+
 public class Server {
     private static Socket socket;
     private PublicCode ss = new PublicCode(); //is there a better way? maybe shareshop can be static?
@@ -57,7 +67,7 @@ public class Server {
         receivedMessage = bReader.readLine();
         System.out.println("Client to Server: Client Hello ID_C = " + receivedMessage);
 
-        // SEND Server_Hello: ID_S, SID //TODO: will the ID_C, ID_S, SID ever be used again?
+        // SEND Server_Hello: ID_S, SID
         mToSend = UUID.randomUUID().toString() + "-00-" + UUID.randomUUID().toString() + "\n"; // "-00-" is the delimiter between the ID_S and SID
         bWriter.write(mToSend);
         bWriter.flush();
@@ -127,7 +137,7 @@ public class Server {
         String message2 = ss.encryptCTR(new BigInteger(mToEncrypt,2), serverSharedKey) + "\n";
         bWriter.write(message2);
         bWriter.flush();
-        System.out.println("Server: Message 2 plaintext = " + ss.convertPadBitString(m2, 512));//TODO: should this be printed to show that it encrypts/decrypts correctly?
+        System.out.println("Server: Message 2 plaintext = " + ss.convertPadBitString(m2, 512));
         System.out.println("Server to Client: E[Message_2||CBC-MAC(Message_2)] = " + message2);
 
 		socket.close();
